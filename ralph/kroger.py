@@ -14,6 +14,7 @@ class krogerAPI:
     del(auth_bytes)
     self.token = None
     self.currentScope = None
+    self.userToken = None
 
   def getToken(self):
     header = {
@@ -28,6 +29,7 @@ class krogerAPI:
     self.token = returned.json()["access_token"]
   
   def getProductDetails(self, upc):
+    if not self.token: self.getToken()
     param = {
       "filter.locationId" : self.location_id
     }
@@ -41,3 +43,11 @@ class krogerAPI:
 
     return returned.json()["data"]
 
+  # Function Stub
+  def getUserAuthToken(self):
+    return
+  
+  # Function stub
+  def putInCart(self, upc, quantity):
+    if not self.userToken: self.getUserAuthToken()
+    return
