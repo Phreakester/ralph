@@ -52,8 +52,8 @@ def process_recipe(shopping_sheet, kroger_token: str, recipe_index: int) -> pd.D
     for index, row in recipe_ingredients.iterrows():
         print("    processing: " + row["description"])
         worksheet.update(f"D{start_row_of_ingredients+index-1}", row['UPC size'])
-        #worksheet.update_acell(f"F{start_row_of_ingredients+index-1}", row['item price'])
-        #worksheet.update_acell(f"G{start_row_of_ingredients+index-1}", row['row price'])
+        worksheet.update_acell(f"F{start_row_of_ingredients+index-1}", row['item price'])
+        worksheet.update_acell(f"G{start_row_of_ingredients+index-1}", row['row price'])
         
         if not row['is stocked']:
             total_price += row['row price']
@@ -72,8 +72,9 @@ def combine_recipies(service_acount, kroger_token: str) -> None:
                                      ignore_index=True) 
         
     # group by UPC and sum quantity
-    all_ingredients = all_ingredients.groupby(['UPC']).agg({'UPC quantity': 'sum', 'row price': 'sum', 'is stocked':'max', 'item price': 'max', 'description':'sum'}).reset_index()
-    
+    all_ingredients = all_ingredients.groupby(['UPC']).agg({'UPC quantity': 'sum', 'item price': 'max', 'row price': 'sum', 'is stocked':'max', 'description':'sum'}).reset_index()
+    # sort by is stocked
+    all_ingredients = all_ingredients.sort_values(by=['is stocked'], ascending=False)
     # write to shopping list
     print("writing to shopping list")
     shopping_list = shopping_sheet.worksheet("Shopping List")
@@ -81,7 +82,7 @@ def combine_recipies(service_acount, kroger_token: str) -> None:
     shopping_list.update([all_ingredients.columns.values.tolist()] + all_ingredients.values.tolist())
     return 
 
-def get_UPC_and_quantity(google_sheets_token: str) -> dict[int:int]:
+def get_UPC_and_quantity(shopping_sheet) -> dict[int:int]:
     return
 
 def write_to_cookbook() -> int:
