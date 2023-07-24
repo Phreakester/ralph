@@ -3,12 +3,8 @@ import ralph.kroger as kg
 
 class Ralph:
     '''Main class for accessing ordering functionality'''
-    def __init__(self, google_sheets_token: str, kroger_token: str) -> None:
+    def __init__(self, google_sheets_token: str, kroger_secret: str, kroger_location: int) -> None:
         self.google_sheets_token = google_sheets_token
-        self.kroger_token = kroger_token
+        self.kroger = kg.krogerAPI(kroger_secret, kroger_location)
 
-    def ui_stub(self) -> list[int]:
-        return ui.get_UPCs('dummy_url')
-
-    def kroger_stub(self) -> int:
-        return kg.buy_item(123)
+    
