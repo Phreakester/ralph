@@ -2,13 +2,13 @@ import requests
 import base64
 
 class krogerAPI:
-  def __init__(self, secret):
+  def __init__(self, secret, location_id):
     self.CLIENT_ID = 'hello-5d41402abc4b2a76b9719d911017c5921674708490345864538'
     self.CLIENT_SECRET = secret
     self.API_BASE_URL = "https://api.kroger.com/v1"
     self.OAUTH2_BASE_URL = "https://api.kroger.com/v1/connect/oauth2"
     self.PRODUCTS = "/products"
-    self.location_id = 70300759
+    self.location_id = location_id
     auth_bytes = bytes((self.CLIENT_ID +":"+ self.CLIENT_SECRET), 'utf-8')
     self.AUTH_HEADER = bytes("Basic ", 'utf-8') + base64.b64encode(auth_bytes)
     del(auth_bytes)
@@ -39,5 +39,5 @@ class krogerAPI:
     returned = requests.get(url=self.API_BASE_URL + self.PRODUCTS + "/" + upc, headers=header, params=param)
     returned.raise_for_status()
 
-    return returned.json()
+    return returned.json()["data"]
 
