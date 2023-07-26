@@ -47,7 +47,24 @@ class krogerAPI:
   def getUserAuthToken(self):
     return
   
-  # Function stub
+
   def putInCart(self, upc, quantity):
     if not self.userToken: self.getUserAuthToken()
-    return
+    header = {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + self.userToken
+    }
+
+    data = """{{
+      "items": [
+        {{
+          "upc": "{0}",
+          "quantity": {1}
+        }}
+      ]
+    }}"""
+
+    data = data.format(upc, quantity)
+
+    returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
+    returned.raise_for_status()
