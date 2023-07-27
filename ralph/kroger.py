@@ -1,5 +1,11 @@
-import requests
-import base64
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import requests,re, base64
+
+class http_server:
+    def __init__(self,address,outer):
+        def handler(*args):
+            krogerAPI.GetHandler(outer,*args)
+        self.server = HTTPServer(address,handler)
 
 class krogerAPI:
   def __init__(self, secret, location_id):
@@ -27,7 +33,7 @@ class krogerAPI:
     returned = requests.post(url=self.OAUTH2_BASE_URL + "/token", headers=header, data=data)
     returned.raise_for_status()
     self.token = returned.json()["access_token"]
-  
+
   def getProductDetails(self, upc):
     if not self.token: self.getToken()
     param = {
@@ -43,12 +49,24 @@ class krogerAPI:
 
     return returned.json()["data"]
 
-  # Function Stub
   def getUserAuthToken(self):
-    return
-  
-
-  def putInCart(self, upc, quantity):
+        port = 8080
+        server_address = ('', port)
+        server = http_server(server_address, self)
+        server.server.handle_request()
+  class GetHandler(BaseHTTPRequestHandler):
+    def __init__(self,outer,*args):
+        self.outer = outer
+        BaseHTTPRequestHandler.__init__(self,*args)
+    def do_GET(self):
+        self.send_response_only(200)
+        self.send_header('Content-type','text/html')
+        self.end_headers()
+        self.wfile.write('\n'.encode('utf-8'))
+        result = re.search(r'callback\?code=(.+)',self.path)
+        self.outer.userToken = result.group(1)
+    
+def putInCart(self, upc, quantity):
     if not self.userToken: self.getUserAuthToken()
     header = {
       "Content-Type" : "application/json",
