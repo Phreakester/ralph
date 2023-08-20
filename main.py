@@ -8,5 +8,7 @@ with open('tokens.json') as f:
 
 print(tokens)
 
-ralph_obj = Ralph(tokens['google_sheets'], tokens['kroger_secret'])
+ralph_obj = Ralph(tokens['google_sheets'], tokens['kroger_secret'], tokens['westwood_ralphs_id'])
 print(ralph_obj)
+
+ralph_obj.testing()
