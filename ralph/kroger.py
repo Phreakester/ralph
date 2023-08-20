@@ -50,10 +50,33 @@ class krogerAPI:
     return returned.json()["data"]
 
   def getUserAuthToken(self):
-        port = 8080
-        server_address = ('', port)
-        server = http_server(server_address, self)
-        server.server.handle_request()
+    cart_params = {
+      'scope' : "cart.basic:write",
+      'client_id' : self.CLIENT_ID,
+      'redirect_uri' : "http://localhost:3000/callback",
+      "response_type" : 'code',
+
+    }
+
+    cart_auth = requests.get(url=self.OAUTH2_BASE_URL + '/authorize', params=cart_params)
+    print("Click on this link to login")
+    print(cart_auth.url)
+    
+    port = 3000
+    server_address = ('', port)
+    server = http_server(server_address, self)
+    server.server.handle_request()
+
+    header = {
+      "Content-Type" : "application/x-www-form-urlencoded",
+      "Authorization" : self.AUTH_HEADER
+    }
+    data = f"grant_type=authorization_code&code={self.userToken}&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback"
+
+    returned = requests.post(url=self.OAUTH2_BASE_URL + "/token", headers=header, data=data)
+    self.userToken = returned.json()['access_token']
+
+
   class GetHandler(BaseHTTPRequestHandler):
     def __init__(self,outer,*args):
         self.outer = outer
@@ -66,23 +89,23 @@ class krogerAPI:
         result = re.search(r'callback\?code=(.+)',self.path)
         self.outer.userToken = result.group(1)
     
-def putInCart(self, upc, quantity):
-    if not self.userToken: self.getUserAuthToken()
-    header = {
-      "Content-Type" : "application/json",
-      "Authorization" : "Bearer " + self.userToken
-    }
+  def putInCart(self, upc, quantity):
+      if not self.userToken: self.getUserAuthToken()
+      header = {
+        "Content-Type" : "application/json",
+        "Authorization" : "Bearer " + self.userToken
+      }
 
-    data = """{{
-      "items": [
-        {{
-          "upc": "{0}",
-          "quantity": {1}
-        }}
-      ]
-    }}"""
+      data = """{{
+        "items": [
+          {{
+            "upc": "{0}",
+            "quantity": {1}
+          }}
+        ]
+      }}"""
 
-    data = data.format(upc, quantity)
+      data = data.format(upc, quantity)
 
-    returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
-    returned.raise_for_status()
+      returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
+      returned.raise_for_status()

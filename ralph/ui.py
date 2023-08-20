@@ -100,6 +100,19 @@ def get_UPC_and_quantity(shopping_sheet) -> dict[int:int]:
 def write_to_cookbook() -> int:
     return
 
+def add_all_to_cart(service_account, cartAPI: krogerAPI):
+    shopping_sheet = service_account.open(shopping_list_sheet_name)
+    worksheet = shopping_sheet.worksheet("Shopping List")
+    all_ingredients = pd.DataFrame(worksheet.get_values(f'A{2-1}:B{stop_row_of_ingredients}'))
+    all_ingredients.columns = all_ingredients.iloc[0]  # Set the first row as the header
+    all_ingredients = all_ingredients[1:]  # Remove the first row (it's now duplicated as the header)
+    print(all_ingredients)
+
+    for index, row in all_ingredients.iterrows():
+        print(row)
+        cartAPI.putInCart(row['UPC'], row['UPC quantity'])
+
+
 
 if __name__ == "__main__":
     gc = gspread.service_account()
