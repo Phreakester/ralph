@@ -1,5 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import requests,re, base64
+import requests,re, base64, webbrowser
 
 class http_server:
     def __init__(self,address,outer):
@@ -59,8 +59,7 @@ class krogerAPI:
     }
 
     cart_auth = requests.get(url=self.OAUTH2_BASE_URL + '/authorize', params=cart_params)
-    print("Click on this link to login")
-    print(cart_auth.url)
+    webbrowser.open(cart_auth.url, new=0)
     
     port = 3000
     server_address = ('', port)
