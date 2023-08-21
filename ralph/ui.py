@@ -117,10 +117,11 @@ def add_all_to_cart(service_account, cartAPI: krogerAPI):
     shopping_sheet = service_account.open(shopping_list_sheet_name)
     worksheet = shopping_sheet.worksheet("Shopping List")
     all_ingredients = pd.DataFrame(worksheet.get_values(f'A{2-1}:H{stop_row_of_ingredients}'))
-    all_ingredients.columns = all_ingredients.iloc[0]  # Set the first row as the header
-    all_ingredients = all_ingredients[1:]  # Remove the first row (it's now duplicated as the header)
-
-    all_ingredients = all_ingredients[all_ingredients['Already Stocked?'] == "FALSE"]
+    all_ingredients.rename(columns=all_ingredients.iloc[0], inplace=True)
+    all_ingredients.drop(all_ingredients.index[0], inplace=True)
+    all_ingredients = all_ingredients.astype({'UPC Quantity' : 'int16'})
+    
+    all_ingredients = all_ingredients[(all_ingredients['Already Stocked?'] == "FALSE") & (all_ingredients['UPC Quantity'] > 0)]
     all_ingredients = all_ingredients[['UPC', 'UPC Quantity']]
     ing_list = all_ingredients.values.tolist()
     #print(ing_list)
