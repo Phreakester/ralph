@@ -2,6 +2,7 @@ from ralph.kroger import krogerAPI
 import gspread
 import pandas as pd
 import numpy as np
+import PySimpleGUI as sg
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -49,7 +50,7 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.
     for index, row in recipe_ingredients.iterrows():
         if not recipe_ingredients.at[index, 'UPC'] or row['Already Stocked?'] == "TRUE":
             continue
-        print("\tProcessing:", row['Description'])
+        sg.Print("\tProcessing:", row['Description'])
         item_data = cartAPI.getProductDetails(row['UPC'])
         
         if(item_data['items'][0]['fulfillment']['curbside'] == True):
@@ -84,7 +85,7 @@ def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
     all_ingredients = pd.DataFrame(columns=columns_names)
 
     for recipe_index in range(number_of_recipies):
-        print("Processing recipe: " + str(recipe_index))
+        sg.Print("Processing recipe: " + str(recipe_index))
         all_ingredients = pd.concat([all_ingredients, 
                                      process_recipe(shopping_sheet, cartAPI, recipe_index)], 
                                      axis=0, 
@@ -95,13 +96,14 @@ def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
     # sort by is stocked
     all_ingredients = all_ingredients.sort_values(by=['Already Stocked?'], ascending=False)
     # write to shopping list
-    print("writing to shopping list")
+    sg.Print("writing to shopping list")
     shopping_list = shopping_sheet.worksheet("Shopping List")
     shopping_list.clear()
 
     all_ingredients.replace(np.nan, '', inplace=True)  
 
     shopping_list.update([all_ingredients.columns.values.tolist()] + all_ingredients.values.tolist())
+    sg.easy_print_close()
     return 
 
 def get_UPC_and_quantity(shopping_sheet) -> dict[int:int]:
@@ -121,9 +123,10 @@ def add_all_to_cart(service_account, cartAPI: krogerAPI):
     all_ingredients = all_ingredients[['UPC', 'UPC Quantity']]
     ing_list = all_ingredients.values.tolist()
     #print(ing_list)
-    print("Ordering", len(ing_list), "items.")
+    sg.Print("Ordering", len(ing_list), "items.")
     cartAPI.putListInCart(ing_list)
-    print("Success")
+    sg.Print("Success")
+    sg.easy_print_close()
 
 
 
