@@ -10,6 +10,8 @@ class Ralph:
 
     def testing(self):
         gc = gspread.service_account(filename='service_account.json')
-        ui.combine_recipies(gc, self.kroger)
+        #shopping_sheet = gc.open('Ralphs Shopping List')
+        #ui.process_recipe(shopping_sheet, self.kroger, 5)
+        #ui.combine_recipies(gc, self.kroger)
         ui.add_all_to_cart(gc, self.kroger)
         

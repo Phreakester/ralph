@@ -59,7 +59,11 @@ class krogerAPI:
     }
 
     cart_auth = requests.get(url=self.OAUTH2_BASE_URL + '/authorize', params=cart_params)
-    webbrowser.open(cart_auth.url, new=0)
+    try:
+       webbrowser.open(cart_auth.url, new=0)
+    except:
+      print("Click on this link to login")
+      print(cart_auth.url)
     
     port = 3000
     server_address = ('', port)
@@ -89,22 +93,52 @@ class krogerAPI:
         self.outer.userToken = result.group(1)
     
   def putInCart(self, upc, quantity):
-      if not self.userToken: self.getUserAuthToken()
-      header = {
-        "Content-Type" : "application/json",
-        "Authorization" : "Bearer " + self.userToken
-      }
+    if not self.userToken: self.getUserAuthToken()
+    header = {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + self.userToken
+    }
 
-      data = """{{
-        "items": [
-          {{
-            "upc": "{0}",
-            "quantity": {1}
-          }}
-        ]
-      }}"""
+    data = """{{
+      "items": [
+        {{
+          "upc": "{0}",
+          "quantity": {1}
+        }}
+      ]
+    }}"""
 
-      data = data.format(upc, quantity)
+    data = data.format(upc, quantity)
 
-      returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
-      returned.raise_for_status()
+    returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
+    returned.raise_for_status()
+
+  def putListInCart(self, items: list):
+    if not self.userToken: self.getUserAuthToken()
+    header = {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + self.userToken
+    }
+
+    str = ""
+    for i in items:
+      temp = """
+        {{
+          "upc": "{0}",
+          "quantity": {1}
+        }},"""
+      
+      str += temp.format(i[0], i[1])
+    
+    str = str[:-1]
+
+    data = """{{
+      "items": [
+        {0}
+      ]
+    }}"""
+
+    data = data.format(str)
+
+    returned = requests.put(url=self.API_BASE_URL + "/cart/add", headers=header, data=data)
+    returned.raise_for_status()

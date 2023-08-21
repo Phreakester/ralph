@@ -1,16 +1,17 @@
 from ralph.kroger import krogerAPI
 import gspread
 import pandas as pd
+import numpy as np
 
 import warnings
 warnings.filterwarnings('ignore')
 
 shopping_list_sheet_name = "Ralphs Shopping List"
-number_of_recipies = 2
+number_of_recipies = 7
 start_row_of_ingredients = 7
-stop_row_of_ingredients = 50
-columns_names=['description', 'UPC',  'UPC quantity','UPC size', 'is stocked', 'item price', 'row price']
-required_columns = ['UPC',  'UPC quantity']
+stop_row_of_ingredients = 107
+columns_names=['Description', 'Recipe Quantity', 'Already Stocked?', 'UPC',  'UPC Quantity','UPC Size', 'Unit Price', 'Total Price']
+required_columns = ['UPC',  'UPC Quantity']
 
 def check_required_columns(df, required_columns):
     """
@@ -27,33 +28,37 @@ def check_required_columns(df, required_columns):
         if col not in df.columns:
             raise ValueError(f"Column '{col}' not found in the DataFrame.")
 
-        if df[col].isnull().any():
-            raise ValueError(f"Column '{col}' has missing values in the DataFrame.")
+        #if df[col].isnull().any():
+        #    raise ValueError(f"Column '{col}' has missing values in the DataFrame.")
 
 def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.DataFrame:
     # load in ingredients from recipe sheet in the shopping list 
     #shopping_sheet = service_account.open(shopping_list_sheet_name)
     worksheet = shopping_sheet.worksheet(f"Recipe {recipe_index}")
 
-    recipe_ingredients = pd.DataFrame(worksheet.get_values(f'A{start_row_of_ingredients-1}:G{stop_row_of_ingredients}'))
+    recipe_ingredients = pd.DataFrame(worksheet.get_values(f'A{start_row_of_ingredients-1}:H{stop_row_of_ingredients}'))
     recipe_ingredients.columns = recipe_ingredients.iloc[0]  # Set the first row as the header
     recipe_ingredients = recipe_ingredients[1:]  # Remove the first row (it's now duplicated as the header)
+    recipe_ingredients = recipe_ingredients.dropna(how='all')
     
-    recipe_ingredients['UPC quantity'] = pd.to_numeric(recipe_ingredients['UPC quantity'], errors='coerce') # convert quantity to be numeric
+    recipe_ingredients['UPC Quantity'] = pd.to_numeric(recipe_ingredients['UPC Quantity'], errors='coerce') # convert quantity to be numeric
 
     check_required_columns(recipe_ingredients, required_columns)
 
     # find price of each line item
     for index, row in recipe_ingredients.iterrows():
-        #recipe_ingredients["item price"][x] = recipe_ingredients.apply(lambda row: cartAPI.getProductDetails(row['UPC'])['items'][0]['price']['regular'], axis=1)    
+        if not recipe_ingredients.at[index, 'UPC'] or row['Already Stocked?'] == "TRUE":
+            continue
+        print("\tProcessing:", row['Description'])
         item_data = cartAPI.getProductDetails(row['UPC'])
-        if(item_data['items'][0]['soldBy'].lower() == 'weight'):
-            recipe_ingredients.at[index, 'item price'] = item_data['items'][0]['price']['promoPerUnitEstimate'] if item_data['items'][0]['price']['promo'] else item_data['items'][0]['price']['regularPerUnitEstimate']
+        
+        if(item_data['items'][0]['fulfillment']['curbside'] == True):
+            recipe_ingredients.at[index, 'Unit Price'] = float(item_data['items'][0]['price']['promo'] if item_data['items'][0]['price']['promo'] else item_data['items'][0]['price']['regular'])
+            recipe_ingredients.at[index, "UPC Size"] = item_data['items'][0]['size']
+            recipe_ingredients.at[index, 'Total Price'] = float(recipe_ingredients.at[index, 'Unit Price']) * float(recipe_ingredients.at[index, 'UPC Quantity'])
         else:
-            recipe_ingredients.at[index, 'item price'] = item_data['items'][0]['price']['promo'] if item_data['items'][0]['price']['promo'] else item_data['items'][0]['price']['regular']
-
-        recipe_ingredients.at[index, "UPC size"] = item_data['items'][0]['size']
-        recipe_ingredients.at[index, 'row price'] = recipe_ingredients.at[index, 'item price'] * row['UPC quantity']
+            raise Exception(row['Description'] + " is not available!")
+        
 
     #recipe_ingredients["item price"] = recipe_ingredients.apply(lambda row: cartAPI.getProductDetails(row['UPC'])['items'][0]['price']['regular'], axis=1)
     #recipe_ingredients["UPC size"] = recipe_ingredients.apply(lambda row: cartAPI.getProductDetails(row['UPC'])['items'][0]['size'], axis=1)
@@ -61,15 +66,17 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.
 
     # iterate through items and paste in prices
     total_price = 0
-    for index, row in recipe_ingredients.iterrows():
-        print("    processing: " + row["description"])
-        worksheet.update(f"D{start_row_of_ingredients+index-1}", row['UPC size'])
-        worksheet.update_acell(f"F{start_row_of_ingredients+index-1}", row['item price'])
-        worksheet.update_acell(f"G{start_row_of_ingredients+index-1}", row['row price'])
-        
-        if not row['is stocked']:
-            total_price += float(row['row price'])
-    worksheet.update('B5', total_price)
+
+    #for index, row in recipe_ingredients.iterrows():
+
+    #print(recipe_ingredients[['UPC Size', 'Unit Price', 'Total Price']])
+    #print(recipe_ingredients.shape[0])
+
+    worksheet.update(f"F{start_row_of_ingredients}:H{start_row_of_ingredients+recipe_ingredients.shape[0]}", )
+
+    recipe_ingredients['Unit Price'].replace('', np.nan, inplace=True)    
+            
+    worksheet.update('B5', recipe_ingredients['Unit Price'].sum())
     return recipe_ingredients
 
 def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
@@ -84,13 +91,16 @@ def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
                                      ignore_index=True) 
         
     # group by UPC and sum quantity
-    all_ingredients = all_ingredients.groupby(['UPC']).agg({'UPC quantity': 'sum', 'item price': 'max', 'row price': 'sum', 'is stocked':'max', 'description':'sum'}).reset_index()
+    all_ingredients = all_ingredients.groupby(['UPC']).agg({'UPC Quantity': 'sum', 'UPC Size':'sum', 'Unit Price': 'max', 'Total Price': 'sum', 'Already Stocked?':'max', 'Description':'sum', 'Recipe Quantity':'sum'}).reset_index()
     # sort by is stocked
-    all_ingredients = all_ingredients.sort_values(by=['is stocked'], ascending=False)
+    all_ingredients = all_ingredients.sort_values(by=['Already Stocked?'], ascending=False)
     # write to shopping list
     print("writing to shopping list")
     shopping_list = shopping_sheet.worksheet("Shopping List")
     shopping_list.clear()
+
+    all_ingredients.replace(np.nan, '', inplace=True)  
+
     shopping_list.update([all_ingredients.columns.values.tolist()] + all_ingredients.values.tolist())
     return 
 
@@ -103,14 +113,17 @@ def write_to_cookbook() -> int:
 def add_all_to_cart(service_account, cartAPI: krogerAPI):
     shopping_sheet = service_account.open(shopping_list_sheet_name)
     worksheet = shopping_sheet.worksheet("Shopping List")
-    all_ingredients = pd.DataFrame(worksheet.get_values(f'A{2-1}:B{stop_row_of_ingredients}'))
+    all_ingredients = pd.DataFrame(worksheet.get_values(f'A{2-1}:H{stop_row_of_ingredients}'))
     all_ingredients.columns = all_ingredients.iloc[0]  # Set the first row as the header
     all_ingredients = all_ingredients[1:]  # Remove the first row (it's now duplicated as the header)
-    print(all_ingredients)
 
-    for index, row in all_ingredients.iterrows():
-        print(row)
-        cartAPI.putInCart(row['UPC'], row['UPC quantity'])
+    all_ingredients = all_ingredients[all_ingredients['Already Stocked?'] == "FALSE"]
+    all_ingredients = all_ingredients[['UPC', 'UPC Quantity']]
+    ing_list = all_ingredients.values.tolist()
+    #print(ing_list)
+    print("Ordering", len(ing_list), "items.")
+    cartAPI.putListInCart(ing_list)
+    print("Success")
 
 
 
