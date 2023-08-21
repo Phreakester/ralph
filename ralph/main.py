@@ -14,13 +14,11 @@ class Ralph:
 
     def testing(self):
         
-        #shopping_sheet = gc.open('Ralphs Shopping List')
-        #ui.process_recipe(shopping_sheet, self.kroger, 5)
+        shopping_sheet = self.gc.open('Ralphs Shopping List')
+        ui.process_recipe(shopping_sheet, self.kroger, 1)
         #ui.combine_recipies(gc, self.kroger)
-        ui.add_all_to_cart(self.gc, self.kroger)
     
     def launch(self):
-        sg.theme('DarkAmber')
         layout = [
             [sg.Text('ralph moment')],
             [sg.Button('Process All Recipes'), sg.Button('Add All to Cart')]

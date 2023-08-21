@@ -47,37 +47,28 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.
     check_required_columns(recipe_ingredients, required_columns)
 
     # find price of each line item
-    for index, row in recipe_ingredients.iterrows():
-        if not recipe_ingredients.at[index, 'UPC'] or row['Already Stocked?'] == "TRUE":
-            continue
-        sg.Print("\tProcessing:", row['Description'])
-        item_data = cartAPI.getProductDetails(row['UPC'])
-        
-        if(item_data['items'][0]['fulfillment']['curbside'] == True):
-            recipe_ingredients.at[index, 'Unit Price'] = float(item_data['items'][0]['price']['promo'] if item_data['items'][0]['price']['promo'] else item_data['items'][0]['price']['regular'])
-            recipe_ingredients.at[index, "UPC Size"] = item_data['items'][0]['size']
-            recipe_ingredients.at[index, 'Total Price'] = float(recipe_ingredients.at[index, 'Unit Price']) * float(recipe_ingredients.at[index, 'UPC Quantity'])
-        else:
-            raise Exception(row['Description'] + " is not available!")
-        
 
-    #recipe_ingredients["item price"] = recipe_ingredients.apply(lambda row: cartAPI.getProductDetails(row['UPC'])['items'][0]['price']['regular'], axis=1)
-    #recipe_ingredients["UPC size"] = recipe_ingredients.apply(lambda row: cartAPI.getProductDetails(row['UPC'])['items'][0]['size'], axis=1)
-    #recipe_ingredients["row price"] = recipe_ingredients["item price"]*recipe_ingredients["UPC quantity"]
+    get_ingred = recipe_ingredients[(recipe_ingredients['UPC'] != "") & (recipe_ingredients['Already Stocked?'] == "FALSE") & (recipe_ingredients['UPC Quantity'].astype('float') >= 0)]
+    upcList = get_ingred['UPC'].tolist()
 
-    # iterate through items and paste in prices
-    total_price = 0
+    if len(upcList):
+        item_data = cartAPI.getMultipleProductDetails(upcList)
+        for i in item_data:
+            if(i['items'][0]['fulfillment']['curbside'] == True):
+                unit_price = float(i['items'][0]['price']['promo'] if i['items'][0]['price']['promo'] else i['items'][0]['price']['regular'])
+                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Unit Price'] = unit_price
+                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Size'] = str(i['items'][0]['size'])
+                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Total Price'] = unit_price * float(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Quantity'])
+            else:
+                raise Exception(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Description'] + " is not available!")
 
-    #for index, row in recipe_ingredients.iterrows():
+        out = recipe_ingredients.loc[:, ['UPC Size', 'Unit Price', 'Total Price']]
 
-    #print(recipe_ingredients[['UPC Size', 'Unit Price', 'Total Price']])
-    #print(recipe_ingredients.shape[0])
+        worksheet.update(f"F{start_row_of_ingredients}:H{start_row_of_ingredients+recipe_ingredients.shape[0]}", out.values.tolist())
 
-    worksheet.update(f"F{start_row_of_ingredients}:H{start_row_of_ingredients+recipe_ingredients.shape[0]}", )
-
-    recipe_ingredients['Unit Price'].replace('', np.nan, inplace=True)    
-            
-    worksheet.update('B5', recipe_ingredients['Unit Price'].sum())
+        recipe_ingredients['Unit Price'].replace('', np.nan, inplace=True)    
+                
+        worksheet.update('B5', recipe_ingredients['Unit Price'].sum())
     return recipe_ingredients
 
 def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
@@ -91,6 +82,16 @@ def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
                                      axis=0, 
                                      ignore_index=True) 
         
+    #all_ingredients['Already Stocked?'] = all_ingredients['Already Stocked?'].replace('', 'FALSE')
+    all_ingredients[['UPC Quantity', 'Unit Price', 'Total Price']] = all_ingredients[['UPC Quantity', 'Unit Price', 'Total Price']].replace('', np.nan)
+        
+    all_ingredients = all_ingredients.astype({'UPC Quantity':'float', 
+                                              'Unit Price':'float',
+                                              'Total Price':'float', 
+                                              'UPC Size':'str', 
+                                              'Already Stocked?':'str',
+                                              'Description':'str',
+                                              'Recipe Quantity':'str'})
     # group by UPC and sum quantity
     all_ingredients = all_ingredients.groupby(['UPC']).agg({'UPC Quantity': 'sum', 'UPC Size':'sum', 'Unit Price': 'max', 'Total Price': 'sum', 'Already Stocked?':'max', 'Description':'sum', 'Recipe Quantity':'sum'}).reset_index()
     # sort by is stocked

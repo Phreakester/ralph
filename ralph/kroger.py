@@ -48,6 +48,27 @@ class krogerAPI:
     returned.raise_for_status()
 
     return returned.json()["data"]
+  
+  def getMultipleProductDetails(self, upcList):
+    if not self.token: self.getToken()
+
+    listStr = ""
+    for upc in upcList:
+      listStr += upc + ','
+    listStr = listStr[:-1]
+
+    param = {
+      "filter.locationId" : self.location_id,
+      "filter.productId" : listStr
+    }
+    header = {
+      "Accept" : "application/json",
+      "Authorization" : ("Bearer " + self.token)
+    }
+    returned = requests.get(url=self.API_BASE_URL + self.PRODUCTS, headers=header, params=param)
+    returned.raise_for_status()
+
+    return returned.json()["data"]
 
   def getUserAuthToken(self):
     cart_params = {
