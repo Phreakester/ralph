@@ -35,6 +35,8 @@ def check_required_columns(df, required_columns):
 def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.DataFrame:
     # load in ingredients from recipe sheet in the shopping list 
     #shopping_sheet = service_account.open(shopping_list_sheet_name)
+    print(f"Proccessing recipe: {recipe_index}")
+
     worksheet = shopping_sheet.worksheet(f"Recipe {recipe_index}")
 
     recipe_ingredients = pd.DataFrame(worksheet.get_values(f'A{start_row_of_ingredients-1}:H{stop_row_of_ingredients}'))
@@ -47,6 +49,11 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.
     check_required_columns(recipe_ingredients, required_columns)
 
     # find price of each line item
+    # detect missing UPCs
+    get_missing_upc_ingredients = recipe_ingredients[(recipe_ingredients['UPC'] == "") & (recipe_ingredients['Already Stocked?'] == "FALSE") & (recipe_ingredients['Description'] != "")]
+   
+    for ingredient in get_missing_upc_ingredients['Description']:
+        print(f"Warning --- missing UPC for {ingredient}")
 
     get_ingred = recipe_ingredients[(recipe_ingredients['UPC'] != "") & (recipe_ingredients['Already Stocked?'] == "FALSE") & (recipe_ingredients['UPC Quantity'].astype('float') >= 0)]
     upcList = get_ingred['UPC'].tolist()
@@ -55,6 +62,7 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.
         item_data = cartAPI.getMultipleProductDetails(upcList)
         for i in item_data:
             if(i['items'][0]['fulfillment']['curbside'] == True):
+                print(f"Getting information for UPC: {i['items'][0]['itemId']}")
                 unit_price = float(i['items'][0]['price']['promo'] if i['items'][0]['price']['promo'] else i['items'][0]['price']['regular'])
                 recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Unit Price'] = unit_price
                 recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Size'] = str(i['items'][0]['size'])
