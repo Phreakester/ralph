@@ -13,7 +13,7 @@ start_row_of_ingredients = 7
 stop_row_of_ingredients = 107
 columns_names=['Description', 'Recipe Quantity', 'Already Stocked?', 'UPC',  'UPC Quantity','UPC Size', 'Unit Price', 'Total Price']
 required_columns = ['UPC',  'UPC Quantity']
-
+recipe_names = ['Incedentals','Cameron', 'Jonah', 'Aidan', 'Getty', 'Drew', 'Trevor']
 def check_required_columns(df, required_columns):
     """
     Check if required columns in a DataFrame have non-empty values for each row.
@@ -32,12 +32,12 @@ def check_required_columns(df, required_columns):
         #if df[col].isnull().any():
         #    raise ValueError(f"Column '{col}' has missing values in the DataFrame.")
 
-def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_index: int) -> pd.DataFrame:
+def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_name: str) -> pd.DataFrame:
     # load in ingredients from recipe sheet in the shopping list 
     #shopping_sheet = service_account.open(shopping_list_sheet_name)
-    print(f"Proccessing recipe: {recipe_index}")
+    print(f"Proccessing recipe: {recipe_name}")
 
-    worksheet = shopping_sheet.worksheet(f"Recipe {recipe_index}")
+    worksheet = shopping_sheet.worksheet(recipe_name)
 
     recipe_ingredients = pd.DataFrame(worksheet.get_values(f'A{start_row_of_ingredients-1}:H{stop_row_of_ingredients}'))
     recipe_ingredients.columns = recipe_ingredients.iloc[0]  # Set the first row as the header
@@ -83,10 +83,10 @@ def combine_recipies(service_acount, cartAPI: krogerAPI) -> None:
     shopping_sheet = service_acount.open(shopping_list_sheet_name)
     all_ingredients = pd.DataFrame(columns=columns_names)
 
-    for recipe_index in range(number_of_recipies):
-        sg.Print("Processing recipe: " + str(recipe_index))
+    for recipe_name in recipe_names:
+        sg.Print("Processing recipe: " + recipe_name)
         all_ingredients = pd.concat([all_ingredients, 
-                                     process_recipe(shopping_sheet, cartAPI, recipe_index)], 
+                                     process_recipe(shopping_sheet, cartAPI, recipe_name)], 
                                      axis=0, 
                                      ignore_index=True) 
         
