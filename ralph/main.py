@@ -15,7 +15,7 @@ class Ralph:
     def testing(self):
         
         shopping_sheet = self.gc.open('Ralphs Shopping List')
-        ui.process_recipe(shopping_sheet, self.kroger, 1)
+        ui.process_recipe(shopping_sheet, self.kroger, "Jonah")
         #ui.combine_recipies(gc, self.kroger)
     
     def launch(self):
