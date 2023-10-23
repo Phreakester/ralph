@@ -61,14 +61,17 @@ def process_recipe(shopping_sheet, cartAPI: krogerAPI, recipe_name: str) -> pd.D
     if len(upcList):
         item_data = cartAPI.getMultipleProductDetails(upcList)
         for i in item_data:
-            if(i['items'][0]['fulfillment']['curbside'] == True):
-                print(f"Getting information for UPC: {i['items'][0]['itemId']}")
-                unit_price = float(i['items'][0]['price']['promo'] if i['items'][0]['price']['promo'] else i['items'][0]['price']['regular'])
-                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Unit Price'] = unit_price
-                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Size'] = str(i['items'][0]['size'])
-                recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Total Price'] = unit_price * float(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Quantity'])
-            else:
-                raise Exception(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Description'] + " is not available!")
+            try:
+                if(i['items'][0]['fulfillment']['curbside'] == True):
+                    print(f"Getting information for UPC: {i['items'][0]['itemId']}")
+                    unit_price = float(i['items'][0]['price']['promo'] if i['items'][0]['price']['promo'] else i['items'][0]['price']['regular'])
+                    recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Unit Price'] = unit_price
+                    recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Size'] = str(i['items'][0]['size'])
+                    recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Total Price'] = unit_price * float(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'UPC Quantity'])
+                else:
+                    raise Exception(recipe_ingredients.loc[recipe_ingredients['UPC'] == i['items'][0]['itemId'], 'Description'] + " is not available!")
+            except:
+                print("Error getting information for UPC: " + i['items'][0]['itemId'])
 
         out = recipe_ingredients.loc[:, ['UPC Size', 'Unit Price', 'Total Price']]
 
